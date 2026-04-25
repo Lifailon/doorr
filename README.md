@@ -1,2 +1,3 @@
-# doorr
-Prowlarr frontend for Android
+# 🚪 Doorr
+
+Prowlarr frontend for Android...
