@@ -17,6 +17,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   http_mock_adapter: ^0.6.1
+  flutter_launcher_icons: ^0.14.4
 
 dependencies:
   flutter:
@@ -25,3 +26,10 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/logo.png"
