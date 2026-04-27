@@ -1,0 +1,42 @@
+{
+  "en": {
+    "search": "Search",
+    "filter": "Filter",
+    "settings": "Settings",
+    "url": "Address and port",
+    "apiKey": "API Key",
+    "save": "Save",
+    "cancel": "Cancel",
+    "fuzzy": "Fuzzy Search",
+    "dark_mode": "Dark mode",
+    "saved": "Settings saved",
+    "error": "Error",
+    "no_title": "No title",
+    "indexer": "Indexer",
+    "category": "Category",
+    "age": "Age",
+    "days_ago": "days ago",
+    "size": "Size",
+    "fill_fields": "Fill settings fields"
+  },
+  "ru": {
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "settings": "Настройки",
+    "url": "Адрес сервера и порт",
+    "apiKey": "API ключ доступа",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "fuzzy": "Неточный поиск",
+    "dark_mode": "Темная тема",
+    "saved": "Настройки сохранены",
+    "error": "Ошибка",
+    "no_title": "Без названия",
+    "indexer": "Индексатор",
+    "category": "Категория",
+    "age": "Возраст",
+    "days_ago": "дн. назад",
+    "size": "Размер",
+    "fill_fields": "Заполните настройки"
+  }
+}
