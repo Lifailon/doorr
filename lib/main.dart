@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
-Map<String, dynamic> _labels = {}; 
+Map<String, dynamic> _labels = {};
 
 void main() => runApp(const DoorrApp());
 
@@ -17,7 +17,7 @@ class DoorrApp extends StatefulWidget {
 
 class _DoorrAppState extends State<DoorrApp> {
   ThemeMode _themeMode = ThemeMode.light;
-  String _lang = 'ru';
+  String _lang = 'en';
   double _fontSize = 14.0;
 
   void updateFontSize(double size) {
@@ -39,20 +39,35 @@ class _DoorrAppState extends State<DoorrApp> {
       themeMode: _themeMode,
       builder: (context, child) {
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(_fontSize / 14.0),
-          ),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(_fontSize / 14.0)),
           child: child!,
         );
       },
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFECEEF4),
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
         colorSchemeSeed: Colors.blue,
+        brightness: Brightness.dark,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF212830),
+          surfaceTintColor: Colors.transparent,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF212830),
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Color(0xFF30363D)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
       home: SearchScreen(
         onThemeChanged: updateTheme,
@@ -75,9 +90,9 @@ class SearchScreen extends StatefulWidget {
   final Function(double) onFontSizeChanged;
 
   const SearchScreen({
-    super.key, 
-    required this.onThemeChanged, 
-    required this.onLangChanged, 
+    super.key,
+    required this.onThemeChanged,
+    required this.onLangChanged,
     required this.currentLang,
     required this.isDark,
     required this.currentFontSize,
@@ -93,11 +108,12 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _keyController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _filterController = TextEditingController();
-  
+
   List<dynamic> _allResults = [];
   List<dynamic> _filteredResults = [];
   bool _isLoading = false;
   bool _isFuzzy = false;
+  String _sortBy = 'age';
 
   String get L => widget.currentLang;
 
@@ -114,7 +130,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _loadLangFile() async {
-    String jsonString = await DefaultAssetBundle.of(context).loadString('assets/lang.json');
+    String jsonString = await DefaultAssetBundle.of(
+      context,
+    ).loadString('assets/lang.json');
     setState(() {
       _labels = jsonDecode(jsonString);
     });
@@ -124,7 +142,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.isEmpty) return true;
     query = query.toLowerCase();
     text = text.toLowerCase();
-    int i = 0; int j = 0;
+    int i = 0;
+    int j = 0;
     while (i < query.length && j < text.length) {
       if (query[i] == text[j]) i++;
       j++;
@@ -139,55 +158,98 @@ class _SearchScreenState extends State<SearchScreen> {
         final title = (item['title'] ?? '').toString().toLowerCase();
         return _isFuzzy ? _fuzzyMatch(query, title) : title.contains(query);
       }).toList();
+
+      _filteredResults.sort((a, b) {
+        if (_sortBy == 'size') {
+          return (a['size'] ?? 0).compareTo(b['size'] ?? 0);
+        } else {
+          return (a['age'] ?? 999).compareTo(b['age'] ?? 999);
+        }
+      });
     });
   }
 
   Widget _highlightText(String text, String query) {
     TextStyle baseStyle = TextStyle(
-      fontSize: 14, 
-      fontWeight: FontWeight.bold, 
-      color: Theme.of(context).textTheme.bodyLarge?.color
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      color: Theme.of(context).textTheme.bodyLarge?.color,
     );
-    
-    if (query.isEmpty) return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: baseStyle);
+
+    if (query.isEmpty)
+      return Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: baseStyle,
+      );
 
     List<TextSpan> spans = [];
     if (!_isFuzzy) {
       final escapedQuery = RegExp.escape(query);
-      if (!text.toLowerCase().contains(query.toLowerCase())) return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: baseStyle);
+      if (!text.toLowerCase().contains(query.toLowerCase()))
+        return Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: baseStyle,
+        );
       final parts = text.split(RegExp(escapedQuery, caseSensitive: false));
       int currentIndex = 0;
       for (var i = 0; i < parts.length; i++) {
         spans.add(TextSpan(text: parts[i]));
         if (i < parts.length - 1) {
-          int start = text.toLowerCase().indexOf(query.toLowerCase(), currentIndex);
+          int start = text.toLowerCase().indexOf(
+            query.toLowerCase(),
+            currentIndex,
+          );
           if (start != -1) {
-            spans.add(TextSpan(text: text.substring(start, start + query.length), style: TextStyle(backgroundColor: Colors.blue.withOpacity(0.3))));
+            spans.add(
+              TextSpan(
+                text: text.substring(start, start + query.length),
+                style: TextStyle(backgroundColor: Colors.blue.withOpacity(0.3)),
+              ),
+            );
             currentIndex = start + query.length;
           }
         }
       }
     } else {
-      String lowText = text.toLowerCase(); String lowQuery = query.toLowerCase();
+      String lowText = text.toLowerCase();
+      String lowQuery = query.toLowerCase();
       int qIdx = 0;
       for (int i = 0; i < text.length; i++) {
         if (qIdx < query.length && lowText[i] == lowQuery[qIdx]) {
-          spans.add(TextSpan(text: text[i], style: TextStyle(backgroundColor: Colors.blue.withOpacity(0.3))));
+          spans.add(
+            TextSpan(
+              text: text[i],
+              style: TextStyle(backgroundColor: Colors.blue.withOpacity(0.3)),
+            ),
+          );
           qIdx++;
-        } else { spans.add(TextSpan(text: text[i])); }
+        } else {
+          spans.add(TextSpan(text: text[i]));
+        }
       }
     }
-    return RichText(maxLines: 2, overflow: TextOverflow.ellipsis, text: TextSpan(style: baseStyle, children: spans));
+    return RichText(
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(style: baseStyle, children: spans),
+    );
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _urlController.text = prefs.getString('baseUrl') ?? '';
-      _keyController.text = prefs.getString('apiKey') ?? '';
-      String lang = prefs.getString('lang') ?? 'ru';
-      widget.onLangChanged(lang);
+      _urlController.text =
+          prefs.getString('baseUrl') ?? '';
+      _keyController.text =
+          prefs.getString('apiKey') ?? '';
+      String lang = prefs.getString('lang') ?? 'en';
       widget.onFontSizeChanged(prefs.getDouble('fontSize') ?? 14.0);
+      widget.onLangChanged(lang);
+      _sortBy = prefs.getString('sortBy') ?? 'age';
       _isFuzzy = prefs.getBool('isFuzzy') ?? false;
       bool isDark = prefs.getBool('isDark') ?? false;
       widget.onThemeChanged(isDark);
@@ -197,28 +259,46 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('baseUrl', _urlController.text);
-    await prefs.setString('apiKey', _keyController.text);    
-    await prefs.setString('lang', widget.currentLang);
+    await prefs.setString('apiKey', _keyController.text);
     await prefs.setDouble('fontSize', widget.currentFontSize);
+    await prefs.setString('lang', widget.currentLang);
+    await prefs.setString('sortBy', _sortBy);
     await prefs.setBool('isFuzzy', _isFuzzy);
     await prefs.setBool('isDark', widget.isDark);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_labels[L]!['saved']!))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(_labels[L]!['saved']!)));
   }
 
   Future<void> _search(String query) async {
-    if (_urlController.text.isEmpty || _keyController.text.isEmpty) { _showSettingsDialog(); return; }
+    if (_urlController.text.isEmpty || _keyController.text.isEmpty) {
+      _showSettingsDialog();
+      return;
+    }
     setState(() => _isLoading = true);
     try {
-      final url = Uri.parse('${_urlController.text}/api/v1/search?query=$query&type=search&limit=100');
-      final response = await http.get(url, headers: {'X-Api-Key': _keyController.text});
+      final url = Uri.parse(
+        '${_urlController.text}/api/v1/search?query=$query&type=search&limit=100',
+      );
+      final response = await http.get(
+        url,
+        headers: {'X-Api-Key': _keyController.text},
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        setState(() { _allResults = data; _applyFilter(); _filterController.clear(); });
+        setState(() {
+          _allResults = data;
+          _applyFilter();
+          _filterController.clear();
+        });
       }
-    } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_labels[L]!['error']}: $e')));
-    } finally { setState(() => _isLoading = false); }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${_labels[L]!['error']}: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   String _formatSize(dynamic sizeInBytes) {
@@ -240,7 +320,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_labels[L]!['error']}: Could not launch $urlString'))
+        SnackBar(
+          content: Text('${_labels[L]!['error']}: Could not launch $urlString'),
+        ),
       );
     }
   }
@@ -249,28 +331,60 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-      title: Row(
-        children: [
-          Image.asset(
-            'assets/logo.png',
-            width: 24,
-            height: 28,
+        title: Row(
+          children: [
+            Image.asset('assets/logo.png', width: 24, height: 28),
+            const SizedBox(width: 10),
+            const Text('Doorr'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _showSettingsDialog,
           ),
-          const SizedBox(width: 10),
-          const Text('Doorr'),
         ],
-      ),
-      actions: [IconButton(icon: const Icon(Icons.settings), onPressed: _showSettingsDialog)],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.only(
+              left: 8.0,
+              right: 8.0,
+              top: 16.0,
+              bottom: 8.0,
+            ),
             child: Row(
               children: [
-                Expanded(flex: 2, child: TextField(controller: _searchController, decoration: InputDecoration(labelText: _labels[L]!['search'], isDense: true, suffixIcon: IconButton(icon: const Icon(Icons.search, size: 20), onPressed: () => _search(_searchController.text)), border: const OutlineInputBorder()), onSubmitted: _search)),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: _labels[widget.currentLang]?['search'],
+                      isDense: true,
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search, size: 20),
+                        onPressed: () => _search(_searchController.text),
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    onSubmitted: _search,
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(flex: 1, child: TextField(controller: _filterController, decoration: InputDecoration(labelText: _labels[L]!['filter'], isDense: true, suffixIcon: const Icon(Icons.filter_alt, size: 18), border: const OutlineInputBorder()))),
+                Expanded(
+                  flex: 1,
+                  child: TextField(
+                    controller: _filterController,
+                    decoration: InputDecoration(
+                      labelText: _labels[widget.currentLang]?['filter'],
+                      isDense: true,
+                      suffixIcon: const Icon(Icons.filter_alt, size: 18),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -281,65 +395,111 @@ class _SearchScreenState extends State<SearchScreen> {
               itemBuilder: (context, index) {
                 final item = _filteredResults[index];
                 String cat = '—';
-                if (item['categories'] != null && item['categories'] is List && item['categories'].isNotEmpty) { 
-                  cat = item['categories'][0]['name'] ?? '—'; 
+                if (item['categories'] != null &&
+                    item['categories'] is List &&
+                    item['categories'].isNotEmpty) {
+                  cat = item['categories'][0]['name'] ?? '—';
                 }
 
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0), // Отступы внутри карточки
+                    padding: const EdgeInsets.all(12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 1. Заголовок на всю ширину
-                        _highlightText(item['title'] ?? _labels[L]!['no_title']!, _filterController.text),
-                        
+                        _highlightText(
+                          item['title'] ?? _labels[L]!['noTitle']!,
+                          _filterController.text,
+                        ),
                         const SizedBox(height: 8),
-                        
-                        // 2. Ряд с инфо и кнопками
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.center, // Выравниваем всё по центру относительно друг друга
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Блок характеристик (слева)
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('${_labels[L]!['indexer']}: ${item['indexer']}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                                  Text('${_labels[L]!['category']}: $cat', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                                  Text('${_labels[L]!['age']}: ${item['age'] ?? '?'} ${_labels[L]!['days_ago']}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
-                                  Text('${_labels[L]!['size']}: ${_formatSize(item['size'])}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                                  Text(
+                                    '${_labels[L]!['indexer']}: ${item['indexer']}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_labels[L]!['category']}: $cat',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_labels[L]!['age']}: ${item['age'] ?? '?'} ${_labels[L]!['daysAgo']}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_labels[L]!['size']}: ${_formatSize(item['size'])}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                            
-                            // Блок статистики и кнопок (справа)
                             Row(
                               mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center, // Центрируем иконки и цифры
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Сиды / Пиры
                                 Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('${item['seeders']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
-                                    Text('${item['leechers']}', style: const TextStyle(color: Colors.red, fontSize: 11)),
+                                    Text(
+                                      '${item['seeders']}',
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${item['leechers']}',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(width: 4),
-                                // Кнопки действий
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero, // Убираем лишние отступы внутри кнопки
-                                  icon: const Icon(Icons.download_for_offline, color: Colors.teal, size: 24),
-                                  onPressed: () => _openUrl(item['downloadUrl'] ?? item['link']),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.download_for_offline,
+                                    color: Colors.teal,
+                                    size: 24,
+                                  ),
+                                  onPressed: () => _openUrl(
+                                    item['downloadUrl'] ?? item['magnetUrl'],
+                                  ),
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
-                                  icon: const Icon(Icons.info, color: Colors.blue, size: 24),
-                                  onPressed: () => _openUrl(item['guid'] ?? item['infoUrl']),
+                                  icon: const Icon(
+                                    Icons.info,
+                                    color: Colors.blue,
+                                    size: 24,
+                                  ),
+                                  onPressed: () => _openUrl(item['infoUrl']),
                                 ),
                               ],
                             ),
@@ -358,63 +518,87 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _showSettingsDialog() {
+    String dialogLang = widget.currentLang;
+    bool dialogIsDark = widget.isDark;
+    double dialogFontSize = widget.currentFontSize;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDS) => AlertDialog(
-          title: Text(_labels[L]!['settings']!),
+          title: Text(_labels[dialogLang]!['settings']!),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: _urlController,
-                  decoration: InputDecoration(labelText: 'http://127.0.0.1:9696')
-                ),
-                TextField(
-                  controller: _keyController,
-                  decoration: InputDecoration(labelText: 'API Key')
+                ApiSettingsFields(
+                  urlController: _urlController,
+                  keyController: _keyController,
                 ),
                 const Divider(),
-                DropdownButtonListTile(L: L, current: L, onChanged: (v) { widget.onLangChanged(v!); setDS((){}); }),
-                ListTile(
-                  title: Text(_labels[L]!['size']!, style: const TextStyle(fontSize: 13)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, size: 20),
-                        onPressed: () {
-                          if (widget.currentFontSize > 10) {
-                            widget.onFontSizeChanged(widget.currentFontSize - 1);
-                            setDS(() {});
-                          }
-                        },
-                      ),
-                      Text(
-                        widget.currentFontSize.round().toString(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline, size: 20),
-                        onPressed: () {
-                          if (widget.currentFontSize < 24) {
-                            widget.onFontSizeChanged(widget.currentFontSize + 1);
-                            setDS(() {});
-                          }
-                        },
-                      ),
-                    ],
-                  ),
+                FontSizeListTile(
+                  labels: _labels,
+                  L: dialogLang,
+                  currentFontSize: dialogFontSize,
+                  onChanged: (newSize) {
+                    widget.onFontSizeChanged(newSize);
+                    setDS(() => dialogFontSize = newSize);
+                  },
                 ),
-                SwitchListTile(title: Text(_labels[L]!['fuzzy']!, style: const TextStyle(fontSize: 13)), value: _isFuzzy, onChanged: (v) { setState(() => _isFuzzy = v); setDS(() {}); _applyFilter(); }),
-                SwitchListTile(title: Text(_labels[L]!['dark_mode']!, style: const TextStyle(fontSize: 13)), value: widget.isDark, onChanged: (v) { widget.onThemeChanged(v); setDS(() {}); }),
+                DropdownButtonListTile(
+                  labels: _labels,
+                  L: dialogLang,
+                  current: dialogLang,
+                  onChanged: (v) {
+                    if (v != null) {
+                      widget.onLangChanged(v);
+                      setDS(() => dialogLang = v);
+                    }
+                  },
+                ),
+                SortListTile(
+                  labels: _labels,
+                  L: dialogLang,
+                  sortBy: _sortBy,
+                  onChanged: (v) {
+                    setState(() => _sortBy = v!);
+                    setDS(() {});
+                    _applyFilter();
+                  },
+                ),
+                FuzzySwitchTile(
+                  labels: _labels,
+                  L: dialogLang,
+                  isFuzzy: _isFuzzy,
+                  onChanged: (v) {
+                    setState(() => _isFuzzy = v);
+                    setDS(() {});
+                    _applyFilter();
+                  },
+                ),
+                ThemeSwitchTile(
+                  labels: _labels,
+                  L: dialogLang,
+                  isDark: dialogIsDark,
+                  onChanged: (v) {
+                    widget.onThemeChanged(v);
+                    setDS(() => dialogIsDark = v);
+                  },
+                ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(_labels[L]!['cancel']!)),
-            ElevatedButton(onPressed: () { _saveSettings(); Navigator.pop(context); }, child: Text(_labels[L]!['save']!)),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(_labels[dialogLang]!['cancel']!),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _saveSettings();
+                Navigator.pop(context);
+              },
+              child: Text(_labels[dialogLang]!['save']!),
+            ),
           ],
         ),
       ),
@@ -422,16 +606,191 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-class DropdownButtonListTile extends StatelessWidget {
-  final String L; final String current; final ValueChanged<String?> onChanged;
-  const DropdownButtonListTile({super.key, required this.L, required this.current, required this.onChanged});
+class ApiSettingsFields extends StatelessWidget {
+  final TextEditingController urlController;
+  final TextEditingController keyController;
+  const ApiSettingsFields({
+    super.key,
+    required this.urlController,
+    required this.keyController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextField(
+          controller: urlController,
+          decoration: const InputDecoration(labelText: 'Url'),
+        ),
+        TextField(
+          controller: keyController,
+          decoration: const InputDecoration(labelText: 'API Key'),
+        ),
+      ],
+    );
+  }
+}
+
+class FontSizeListTile extends StatelessWidget {
+  final Map labels;
+  final String L;
+  final double currentFontSize;
+  final ValueChanged<double> onChanged;
+  const FontSizeListTile({
+    super.key,
+    required this.labels,
+    required this.L,
+    required this.currentFontSize,
+    required this.onChanged,
+  });
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      title: Text(L == 'ru' ? 'Язык' : 'Language', style: const TextStyle(fontSize: 13)),
+      title: Text(labels[L]!['size']!, style: const TextStyle(fontSize: 13)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            onPressed: currentFontSize > 10
+                ? () => onChanged(currentFontSize - 1)
+                : null,
+          ),
+          Text(
+            currentFontSize.round().toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, size: 20),
+            onPressed: currentFontSize < 24
+                ? () => onChanged(currentFontSize + 1)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SortListTile extends StatelessWidget {
+  final Map labels;
+  final String L;
+  final String sortBy;
+  final ValueChanged<String?> onChanged;
+  const SortListTile({
+    super.key,
+    required this.labels,
+    required this.L,
+    required this.sortBy,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(
+        labels[L]!['sort'] ?? 'Сортировка',
+        style: const TextStyle(fontSize: 13),
+      ),
+      trailing: DropdownButton<String>(
+        value: sortBy,
+        items: [
+          DropdownMenuItem(
+            value: 'age',
+            child: Text(labels[L]!['sortAge'] ?? 'По дате'),
+          ),
+          DropdownMenuItem(
+            value: 'size',
+            child: Text(labels[L]!['sortSize'] ?? 'По размеру'),
+          ),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class FuzzySwitchTile extends StatelessWidget {
+  final Map labels;
+  final String L;
+  final bool isFuzzy;
+  final ValueChanged<bool> onChanged;
+  const FuzzySwitchTile({
+    super.key,
+    required this.labels,
+    required this.L,
+    required this.isFuzzy,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      title: Text(labels[L]!['fuzzy']!, style: const TextStyle(fontSize: 13)),
+      value: isFuzzy,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class ThemeSwitchTile extends StatelessWidget {
+  final Map labels;
+  final String L;
+  final bool isDark;
+  final ValueChanged<bool> onChanged;
+  const ThemeSwitchTile({
+    super.key,
+    required this.labels,
+    required this.L,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      title: Text(
+        labels[L]!['darkMode']!,
+        style: const TextStyle(fontSize: 13),
+      ),
+      value: isDark,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class DropdownButtonListTile extends StatelessWidget {
+  final Map labels;
+  final String L;
+  final String current;
+  final ValueChanged<String?> onChanged;
+
+  const DropdownButtonListTile({
+    super.key,
+    required this.labels,
+    required this.L,
+    required this.current,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final availableLanguages = labels.keys.toList();
+    return ListTile(
+      title: Text(
+        labels[L]?['lang'] ?? 'Language',
+        style: const TextStyle(fontSize: 13),
+      ),
       trailing: DropdownButton<String>(
         value: current,
-        items: const [DropdownMenuItem(value: 'ru', child: Text('RU')), DropdownMenuItem(value: 'en', child: Text('EN'))],
+        items: availableLanguages.map((langCode) {
+          return DropdownMenuItem(
+            value: langCode.toString(),
+            child: Text(langCode.toString().toUpperCase()),
+          );
+        }).toList(),
         onChanged: onChanged,
       ),
     );
