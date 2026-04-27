@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 
 Map<String, dynamic> _labels = {}; 
 
@@ -220,6 +221,30 @@ class _SearchScreenState extends State<SearchScreen> {
     } finally { setState(() => _isLoading = false); }
   }
 
+  String _formatSize(dynamic sizeInBytes) {
+    if (sizeInBytes == null) return '0 b';
+    double bytes = double.tryParse(sizeInBytes.toString()) ?? 0;
+    if (bytes >= 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} Gb';
+    } else if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} Mb';
+    } else if (bytes >= 1024) {
+      return '${(bytes / 1024).toStringAsFixed(2)} Kb';
+    } else {
+      return '$bytes b';
+    }
+  }
+
+  Future<void> _openUrl(String? urlString) async {
+    if (urlString == null || urlString.isEmpty) return;
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_labels[L]!['error']}: Could not launch $urlString'))
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -256,26 +281,70 @@ class _SearchScreenState extends State<SearchScreen> {
               itemBuilder: (context, index) {
                 final item = _filteredResults[index];
                 String cat = '—';
-                if (item['categories'] != null && item['categories'] is List && item['categories'].isNotEmpty) { cat = item['categories'][0]['name'] ?? '—'; }
+                if (item['categories'] != null && item['categories'] is List && item['categories'].isNotEmpty) { 
+                  cat = item['categories'][0]['name'] ?? '—'; 
+                }
+
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: _highlightText(item['title'] ?? _labels[L]!['no_title']!, _filterController.text),
-                    subtitle: Column(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0), // Отступы внутри карточки
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 4),
-                        Text('${_labels[L]!['indexer']}: ${item['indexer']}', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
-                        Text('${_labels[L]!['category']}: $cat', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
-                        Text('${_labels[L]!['age']}: ${item['age'] ?? '?'} ${_labels[L]!['days_ago']}', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
-                        Text('${_labels[L]!['size']}: ${(item['size'] / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('${item['seeders']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                        Text('${item['leechers']}', style: const TextStyle(color: Colors.red, fontSize: 11)),
+                        // 1. Заголовок на всю ширину
+                        _highlightText(item['title'] ?? _labels[L]!['no_title']!, _filterController.text),
+                        
+                        const SizedBox(height: 8),
+                        
+                        // 2. Ряд с инфо и кнопками
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center, // Выравниваем всё по центру относительно друг друга
+                          children: [
+                            // Блок характеристик (слева)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${_labels[L]!['indexer']}: ${item['indexer']}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                                  Text('${_labels[L]!['category']}: $cat', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                                  Text('${_labels[L]!['age']}: ${item['age'] ?? '?'} ${_labels[L]!['days_ago']}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                                  Text('${_labels[L]!['size']}: ${_formatSize(item['size'])}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                                ],
+                              ),
+                            ),
+                            
+                            // Блок статистики и кнопок (справа)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center, // Центрируем иконки и цифры
+                              children: [
+                                // Сиды / Пиры
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('${item['seeders']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                                    Text('${item['leechers']}', style: const TextStyle(color: Colors.red, fontSize: 11)),
+                                  ],
+                                ),
+                                const SizedBox(width: 4),
+                                // Кнопки действий
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero, // Убираем лишние отступы внутри кнопки
+                                  icon: const Icon(Icons.download_for_offline, color: Colors.teal, size: 24),
+                                  onPressed: () => _openUrl(item['downloadUrl'] ?? item['link']),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.info, color: Colors.blue, size: 24),
+                                  onPressed: () => _openUrl(item['guid'] ?? item['infoUrl']),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -300,11 +369,11 @@ class _SearchScreenState extends State<SearchScreen> {
               children: [
                 TextField(
                   controller: _urlController,
-                  decoration: InputDecoration(labelText: _labels[L]!['url'])
+                  decoration: InputDecoration(labelText: 'http://127.0.0.1:9696')
                 ),
                 TextField(
                   controller: _keyController,
-                  decoration: InputDecoration(labelText: _labels[L]!['apiKey'])
+                  decoration: InputDecoration(labelText: 'API Key')
                 ),
                 const Divider(),
                 DropdownButtonListTile(L: L, current: L, onChanged: (v) { widget.onLangChanged(v!); setDS((){}); }),
