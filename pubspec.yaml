@@ -1,5 +1,5 @@
 name: doorr
-description: "Prowlarr frontend for Android"
+description: "Android search frontend for Prowlarr and Jackett"
 publish_to: 'none'
 version: 1.0.0+1
 

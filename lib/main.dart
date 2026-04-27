@@ -52,6 +52,10 @@ class _DoorrAppState extends State<DoorrApp> {
           backgroundColor: Color(0xFFECEEF4),
           surfaceTintColor: Colors.transparent,
         ),
+        listTileTheme: const ListTileThemeData(
+          contentPadding: EdgeInsets.zero,
+          horizontalTitleGap: 0,
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -67,6 +71,10 @@ class _DoorrAppState extends State<DoorrApp> {
             side: const BorderSide(color: Color(0xFF30363D)),
             borderRadius: BorderRadius.circular(12),
           ),
+        ),
+        listTileTheme: const ListTileThemeData(
+          contentPadding: EdgeInsets.zero,
+          horizontalTitleGap: 0,
         ),
       ),
       home: SearchScreen(
@@ -109,6 +117,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _filterController = TextEditingController();
 
+  String _provider = 'prowlarr';
   List<dynamic> _allResults = [];
   List<dynamic> _filteredResults = [];
   bool _isLoading = false;
@@ -241,13 +250,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    _provider = prefs.getString('provider') ?? 'prowlarr';
     setState(() {
-      _urlController.text =
-          prefs.getString('baseUrl') ?? '';
-      _keyController.text =
-          prefs.getString('apiKey') ?? '';
-      String lang = prefs.getString('lang') ?? 'en';
+      _urlController.text = prefs.getString('baseUrl') ?? '';
+      _keyController.text = prefs.getString('apiKey') ?? '';
       widget.onFontSizeChanged(prefs.getDouble('fontSize') ?? 14.0);
+      String lang = prefs.getString('lang') ?? 'en';
       widget.onLangChanged(lang);
       _sortBy = prefs.getString('sortBy') ?? 'age';
       _isFuzzy = prefs.getBool('isFuzzy') ?? false;
@@ -258,6 +266,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('provider', _provider);
     await prefs.setString('baseUrl', _urlController.text);
     await prefs.setString('apiKey', _keyController.text);
     await prefs.setDouble('fontSize', widget.currentFontSize);
@@ -271,34 +280,80 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _search(String query) async {
-    if (_urlController.text.isEmpty || _keyController.text.isEmpty) {
+    if (_urlController.text.isEmpty ||
+        (_keyController.text.isEmpty && _provider == 'prowlarr')) {
       _showSettingsDialog();
       return;
     }
+
     setState(() => _isLoading = true);
     try {
-      final url = Uri.parse(
-        '${_urlController.text}/api/v1/search?query=$query&type=search&limit=100',
-      );
+      Uri url;
+      if (_provider == 'prowlarr') {
+        url = Uri.parse(
+          '${_urlController.text}/api/v1/search?query=$query&type=search&limit=100',
+        );
+      } else {
+        url = Uri.parse(
+          '${_urlController.text}/api/v2.0/indexers/all/results?apikey=${_keyController.text}&Query=$query',
+        );
+      }
+
       final response = await http.get(
         url,
-        headers: {'X-Api-Key': _keyController.text},
+        headers: _provider == 'prowlarr'
+            ? {'X-Api-Key': _keyController.text}
+            : {},
       );
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        List<dynamic> rawList = [];
+        if (_provider == 'jackett') {
+          rawList = data['Results'] ?? [];
+        } else {
+          rawList = data is List
+              ? data
+              : [];
+        }
         setState(() {
-          _allResults = data;
+          _allResults = rawList.map((item) => _mapToUniversal(item)).toList();
           _applyFilter();
-          _filterController.clear();
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${_labels[L]!['error']}: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Map<String, dynamic> _mapToUniversal(dynamic item) {
+    if (_provider == 'prowlarr') return item;
+    int daysAge = 0;
+    try {
+      if (item['PublishDate'] != null) {
+        DateTime pubDate = DateTime.parse(item['PublishDate']);
+        daysAge = DateTime.now().difference(pubDate).inDays;
+      }
+    } catch (_) {}
+
+    return {
+      'title': item['Title']?.toString().trim() ?? 'No Title',
+      'size': item['Size'] ?? 0,
+      'indexer': item['Tracker'] ?? item['IndexerId'] ?? 'Unknown',
+      'seeders': item['Seeders'] ?? 0,
+      'leechers': item['Peers'] ?? 0,
+      'age': daysAge,
+      'downloadUrl': item['Link'] ?? item['DownloadUrl'],
+      'magnetUrl': item['MagnetUri'],
+      'infoUrl': item['Details'] ?? item['Guid'],
+      'categories': [
+        {'name': item['CategoryDesc'] ?? '—'},
+      ],
+    };
   }
 
   String _formatSize(dynamic sizeInBytes) {
@@ -332,10 +387,28 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Row(
+          crossAxisAlignment: CrossAxisAlignment.center, 
           children: [
             Image.asset('assets/logo.png', width: 24, height: 28),
             const SizedBox(width: 10),
-            const Text('Doorr'),
+            Padding(
+              padding: const EdgeInsets.only(top: 4), 
+              child: Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  children: [
+                    TextSpan(text: 'D', style: TextStyle(color: Colors.blue)),
+                    TextSpan(text: 'o', style: TextStyle(color: Colors.red)),
+                    TextSpan(text: 'o', style: TextStyle(color: Colors.orange)),
+                    TextSpan(text: 'r', style: TextStyle(color: Colors.blue)),
+                    TextSpan(text: 'r', style: TextStyle(color: Colors.blue)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -530,11 +603,35 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ListTile(
+                  title: Text(
+                    _labels[dialogLang]?['provider'],
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  trailing: DropdownButton<String>(
+                    value: _provider,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'prowlarr',
+                        child: Text('Prowlarr'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'jackett',
+                        child: Text('Jackett'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _provider = v);
+                        setDS(() {});
+                      }
+                    },
+                  ),
+                ),
                 ApiSettingsFields(
                   urlController: _urlController,
                   keyController: _keyController,
                 ),
-                const Divider(),
                 FontSizeListTile(
                   labels: _labels,
                   L: dialogLang,

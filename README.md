@@ -6,5 +6,5 @@
 </h1>
 
 <p align="center">
-    Prowlarr frontend for Android.
+    Android search frontend for <a href="https://github.com/prowlarr/prowlarr">Prowlarr</a> and <a href="https://github.com/Jackett/Jackett">Jackett</a>.
 </p>
