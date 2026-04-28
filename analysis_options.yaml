@@ -1,4 +1,4 @@
-# # https://dart.dev/guides/language/analysis-options
+# https://dart.dev/guides/language/analysis-options
 include: package:flutter_lints/flutter.yaml
 
 linter:

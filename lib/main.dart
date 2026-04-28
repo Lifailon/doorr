@@ -389,22 +389,22 @@ class _SearchScreenState extends State<SearchScreen> {
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.center, 
           children: [
-            Image.asset('assets/logo.png', width: 24, height: 28),
-            const SizedBox(width: 10),
+            Image.asset('assets/logo.png', width: 36, height: 40),
+            const SizedBox(width: 5),
             Padding(
               padding: const EdgeInsets.only(top: 4), 
               child: Text.rich(
                 TextSpan(
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 35,
                     fontWeight: FontWeight.bold,
                   ),
                   children: [
                     TextSpan(text: 'D', style: TextStyle(color: Colors.blue)),
+                    TextSpan(text: 'o', style: TextStyle(color: Colors.blue)),
                     TextSpan(text: 'o', style: TextStyle(color: Colors.red)),
-                    TextSpan(text: 'o', style: TextStyle(color: Colors.orange)),
-                    TextSpan(text: 'r', style: TextStyle(color: Colors.blue)),
-                    TextSpan(text: 'r', style: TextStyle(color: Colors.blue)),
+                    TextSpan(text: 'r', style: TextStyle(color: Colors.orange)),
+                    TextSpan(text: 'r', style: TextStyle(color: Colors.orange)),
                   ],
                 ),
               ),
@@ -412,10 +412,15 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _showSettingsDialog,
-          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: IconButton(
+              iconSize: 30,
+              color: Colors.grey,
+              icon: const Icon(Icons.settings),
+              onPressed: _showSettingsDialog,
+            ),
+          )
         ],
       ),
       body: Column(
@@ -499,28 +504,28 @@ class _SearchScreenState extends State<SearchScreen> {
                                   Text(
                                     '${_labels[L]!['indexer']}: ${item['indexer']}',
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: Colors.blueGrey,
                                     ),
                                   ),
                                   Text(
                                     '${_labels[L]!['category']}: $cat',
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: Colors.blueGrey,
                                     ),
                                   ),
                                   Text(
                                     '${_labels[L]!['age']}: ${item['age'] ?? '?'} ${_labels[L]!['daysAgo']}',
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: Colors.blueGrey,
                                     ),
                                   ),
                                   Text(
                                     '${_labels[L]!['size']}: ${_formatSize(item['size'])}',
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: Colors.blueGrey,
                                     ),
                                   ),
@@ -539,14 +544,14 @@ class _SearchScreenState extends State<SearchScreen> {
                                       style: const TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 11,
+                                        fontSize: 15,
                                       ),
                                     ),
                                     Text(
                                       '${item['leechers']}',
                                       style: const TextStyle(
                                         color: Colors.red,
-                                        fontSize: 11,
+                                        fontSize: 15,
                                       ),
                                     ),
                                   ],
@@ -558,7 +563,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   icon: const Icon(
                                     Icons.download_for_offline,
                                     color: Colors.teal,
-                                    size: 24,
+                                    size: 50,
                                   ),
                                   onPressed: () => _openUrl(
                                     item['downloadUrl'] ?? item['magnetUrl'],
@@ -570,7 +575,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   icon: const Icon(
                                     Icons.info,
                                     color: Colors.blue,
-                                    size: 24,
+                                    size: 50,
                                   ),
                                   onPressed: () => _openUrl(item['infoUrl']),
                                 ),
