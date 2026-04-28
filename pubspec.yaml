@@ -26,6 +26,7 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
+  dtorrent_parser: ^1.0.9
 
 flutter_launcher_icons:
   android: "launcher_icon"

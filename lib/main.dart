@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dtorrent_parser/dtorrent_parser.dart';
 
 Map<String, dynamic> _labels = {};
 
@@ -18,7 +19,7 @@ class DoorrApp extends StatefulWidget {
 class _DoorrAppState extends State<DoorrApp> {
   ThemeMode _themeMode = ThemeMode.light;
   String _lang = 'en';
-  double _fontSize = 14.0;
+  double _fontSize = 14;
 
   void updateFontSize(double size) {
     setState(() => _fontSize = size);
@@ -41,7 +42,7 @@ class _DoorrAppState extends State<DoorrApp> {
         return MediaQuery(
           data: MediaQuery.of(
             context,
-          ).copyWith(textScaler: TextScaler.linear(_fontSize / 14.0)),
+          ).copyWith(textScaler: TextScaler.linear(_fontSize / 14)),
           child: child!,
         );
       },
@@ -248,13 +249,50 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Future<void> _fetchFileStructure(dynamic item) async {
+    final String? url = item['downloadUrl'] ?? item['magnetUrl'];
+    if (url == null || url.startsWith('magnet:')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot parse structure from Magnet link'),
+        ),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final torrent = await Torrent.parseFromBytes(response.bodyBytes);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FileStructureScreen(
+              title: item['title'] ?? 'Files',
+              files: torrent.files,
+              lang: widget.currentLang,
+              formatSize: _formatSize,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _provider = prefs.getString('provider') ?? 'prowlarr';
     setState(() {
       _urlController.text = prefs.getString('baseUrl') ?? '';
       _keyController.text = prefs.getString('apiKey') ?? '';
-      widget.onFontSizeChanged(prefs.getDouble('fontSize') ?? 14.0);
+      widget.onFontSizeChanged(prefs.getDouble('fontSize') ?? 15);
       String lang = prefs.getString('lang') ?? 'en';
       widget.onLangChanged(lang);
       _sortBy = prefs.getString('sortBy') ?? 'age';
@@ -312,9 +350,7 @@ class _SearchScreenState extends State<SearchScreen> {
         if (_provider == 'jackett') {
           rawList = data['Results'] ?? [];
         } else {
-          rawList = data is List
-              ? data
-              : [];
+          rawList = data is List ? data : [];
         }
         setState(() {
           _allResults = rawList.map((item) => _mapToUniversal(item)).toList();
@@ -388,24 +424,39 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         titleSpacing: 8,
         title: Row(
-          crossAxisAlignment: CrossAxisAlignment.center, 
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Image.asset('assets/logo.png', width: 55, height: 55),
+            Image.asset('assets/logo.png', width: 50, height: 50),
             const SizedBox(width: 0),
             Padding(
-              padding: const EdgeInsets.only(top: 4), 
+              padding: const EdgeInsets.only(top: 4),
               child: Text.rich(
                 TextSpan(
                   style: const TextStyle(
-                    fontSize: 35,
+                    fontSize: 30,
                     fontWeight: FontWeight.bold,
                   ),
                   children: [
-                    TextSpan(text: 'D', style: TextStyle(color: Colors.blue)),
-                    TextSpan(text: 'o', style: TextStyle(color: Colors.blue)),
-                    TextSpan(text: 'o', style: TextStyle(color: Colors.red)),
-                    TextSpan(text: 'r', style: TextStyle(color: Colors.orange)),
-                    TextSpan(text: 'r', style: TextStyle(color: Colors.orange)),
+                    TextSpan(
+                      text: 'D',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                    TextSpan(
+                      text: 'o',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                    TextSpan(
+                      text: 'o',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    TextSpan(
+                      text: 'r',
+                      style: TextStyle(color: Colors.orange),
+                    ),
+                    TextSpan(
+                      text: 'r',
+                      style: TextStyle(color: Colors.orange),
+                    ),
                   ],
                 ),
               ),
@@ -421,17 +472,17 @@ class _SearchScreenState extends State<SearchScreen> {
               icon: const Icon(Icons.settings),
               onPressed: _showSettingsDialog,
             ),
-          )
+          ),
         ],
       ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.only(
-              left: 8.0,
-              right: 8.0,
-              top: 16.0,
-              bottom: 8.0,
+              left: 8,
+              right: 8,
+              top: 16,
+              bottom: 8,
             ),
             child: Row(
               children: [
@@ -486,7 +537,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     vertical: 4,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -539,21 +590,45 @@ class _SearchScreenState extends State<SearchScreen> {
                               children: [
                                 Column(
                                   mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      '${item['seeders']}',
-                                      style: const TextStyle(
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.arrow_upward,
+                                          color: Colors.green,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '${item['seeders']}',
+                                          style: const TextStyle(
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '${item['leechers']}',
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 15,
-                                      ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.arrow_downward,
+                                          color: Colors.red,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '${item['leechers']}',
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -563,8 +638,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                   padding: EdgeInsets.zero,
                                   icon: const Icon(
                                     Icons.download_for_offline,
-                                    color: Colors.teal,
-                                    size: 50,
+                                    color: Colors.green,
+                                    size: 40,
                                   ),
                                   onPressed: () => _openUrl(
                                     item['downloadUrl'] ?? item['magnetUrl'],
@@ -574,9 +649,19 @@ class _SearchScreenState extends State<SearchScreen> {
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   icon: const Icon(
-                                    Icons.info,
+                                    Icons.folder,
+                                    color: Colors.orange,
+                                    size: 40,
+                                  ),
+                                  onPressed: () => _fetchFileStructure(item),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.link,
                                     color: Colors.blue,
-                                    size: 50,
+                                    size: 40,
                                   ),
                                   onPressed: () => _openUrl(item['infoUrl']),
                                 ),
@@ -793,21 +878,12 @@ class SortListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      title: Text(
-        labels[L]!['sort'],
-        style: const TextStyle(fontSize: 13),
-      ),
+      title: Text(labels[L]!['sort'], style: const TextStyle(fontSize: 13)),
       trailing: DropdownButton<String>(
         value: sortBy,
         items: [
-          DropdownMenuItem(
-            value: 'age',
-            child: Text(labels[L]!['sortAge']),
-          ),
-          DropdownMenuItem(
-            value: 'size',
-            child: Text(labels[L]!['sortSize']),
-          ),
+          DropdownMenuItem(value: 'age', child: Text(labels[L]!['sortAge'])),
+          DropdownMenuItem(value: 'size', child: Text(labels[L]!['sortSize'])),
         ],
         onChanged: onChanged,
       ),
@@ -882,10 +958,7 @@ class DropdownButtonListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final availableLanguages = labels.keys.toList();
     return ListTile(
-      title: Text(
-        labels[L]?['lang'],
-        style: const TextStyle(fontSize: 13),
-      ),
+      title: Text(labels[L]?['lang'], style: const TextStyle(fontSize: 13)),
       trailing: DropdownButton<String>(
         value: current,
         items: availableLanguages.map((langCode) {
@@ -895,6 +968,99 @@ class DropdownButtonListTile extends StatelessWidget {
           );
         }).toList(),
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class FileStructureScreen extends StatelessWidget {
+  final String title;
+  final List<dynamic> files;
+  final String lang;
+  final Function(dynamic) formatSize;
+
+  const FileStructureScreen({
+    super.key,
+    required this.title,
+    required this.files,
+    required this.lang,
+    required this.formatSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title, style: const TextStyle(fontSize: 14))),
+      body: Column(
+        children: [
+          Container(
+            color: Theme.of(context).dividerColor.withOpacity(0.05),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    _labels[lang]?['file'] ?? 'File',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    _labels[lang]?['size'] ?? 'Size',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.separated(
+              itemCount: files.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final f = files[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          f.name,
+                          style: const TextStyle(fontSize: 12),
+                          softWrap: true,
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          formatSize(f.length),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.blueGrey,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
