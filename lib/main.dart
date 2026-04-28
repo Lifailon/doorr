@@ -386,11 +386,12 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 8,
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.center, 
           children: [
-            Image.asset('assets/logo.png', width: 36, height: 40),
-            const SizedBox(width: 5),
+            Image.asset('assets/logo.png', width: 55, height: 55),
+            const SizedBox(width: 0),
             Padding(
               padding: const EdgeInsets.only(top: 4), 
               child: Text.rich(
@@ -793,7 +794,7 @@ class SortListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(
-        labels[L]!['sort'] ?? 'Сортировка',
+        labels[L]!['sort'],
         style: const TextStyle(fontSize: 13),
       ),
       trailing: DropdownButton<String>(
@@ -801,11 +802,11 @@ class SortListTile extends StatelessWidget {
         items: [
           DropdownMenuItem(
             value: 'age',
-            child: Text(labels[L]!['sortAge'] ?? 'По дате'),
+            child: Text(labels[L]!['sortAge']),
           ),
           DropdownMenuItem(
             value: 'size',
-            child: Text(labels[L]!['sortSize'] ?? 'По размеру'),
+            child: Text(labels[L]!['sortSize']),
           ),
         ],
         onChanged: onChanged,
@@ -882,7 +883,7 @@ class DropdownButtonListTile extends StatelessWidget {
     final availableLanguages = labels.keys.toList();
     return ListTile(
       title: Text(
-        labels[L]?['lang'] ?? 'Language',
+        labels[L]?['lang'],
         style: const TextStyle(fontSize: 13),
       ),
       trailing: DropdownButton<String>(
