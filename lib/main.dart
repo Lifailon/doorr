@@ -5,8 +5,8 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dio/dio.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 Map<String, dynamic> _labels = {};
 
@@ -422,7 +422,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Future<void> _handleDownload(String url, String title) async {
+  Future<void> _openFile(String url, String title) async {
     setState(() {
       _isLoading = true;
       _downloadProgress = 0.0;
@@ -430,7 +430,8 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       String safeName = title.replaceAll(RegExp(r'[^\w\s]+'), '').trim();
       if (safeName.length > 30) safeName = safeName.substring(0, 30);
-      final String fullPath = "/storage/emulated/0/Download/$safeName.torrent";
+      final dir = await getExternalStorageDirectory();
+      final String fullPath = "${dir!.path}/$safeName.torrent";
       await Dio().download(
         url,
         fullPath,
@@ -438,7 +439,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (tot != -1) setState(() => _downloadProgress = rec / tot);
         },
       );
-      await Share.shareXFiles([XFile(fullPath)], text: 'Open torrent');
+      await OpenFilex.open(fullPath);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -691,10 +692,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                         item['downloadUrl'] ??
                                         item['magnetUrl'];
                                     if (url != null) {
-                                      if (kIsWeb || !url.startsWith('http')) {
+                                      if (!url.startsWith('http')) {
                                         _openUrl(url);
                                       } else {
-                                        _handleDownload(
+                                        _openFile(
                                           url,
                                           item['title'] ?? 'file',
                                         );
@@ -744,133 +745,156 @@ class _SearchScreenState extends State<SearchScreen> {
     double dialogFontSize = widget.currentFontSize;
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDS) => AlertDialog(
-          title: Text(_labels[dialogLang]!['settings']!),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: Text(
-                    _labels[dialogLang]?['provider'],
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  trailing: DropdownButton<String>(
-                    value: _provider,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'prowlarr',
-                        child: Text('Prowlarr'),
+      builder: (context) {
+        double customWidth = MediaQuery.of(context).size.width * 0.6;
+        return StatefulBuilder(
+          builder: (context, setDS) => AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 0),
+            title: Text(_labels[dialogLang]!['settings']!),
+            content: SizedBox(
+              width: customWidth,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: Text(
+                        _labels[dialogLang]?['provider'],
+                        style: const TextStyle(fontSize: 13),
                       ),
-                      DropdownMenuItem(
-                        value: 'jackett',
-                        child: Text('Jackett'),
+                      trailing: DropdownButton<String>(
+                        value: _provider,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'prowlarr',
+                            child: Text('Prowlarr'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'jackett',
+                            child: Text('Jackett'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => _provider = v);
+                            setDS(() {});
+                          }
+                        },
                       ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _provider = v);
+                    ),
+                    ApiSettingsFields(
+                      urlController: _urlController,
+                      keyController: _keyController,
+                    ),
+                    FontSizeListTile(
+                      labels: _labels,
+                      L: dialogLang,
+                      currentFontSize: dialogFontSize,
+                      onChanged: (newSize) {
+                        widget.onFontSizeChanged(newSize);
+                        setDS(() => dialogFontSize = newSize);
+                      },
+                    ),
+                    DropdownButtonListTile(
+                      labels: _labels,
+                      L: dialogLang,
+                      current: dialogLang,
+                      onChanged: (v) {
+                        if (v != null) {
+                          widget.onLangChanged(v);
+                          setDS(() => dialogLang = v);
+                        }
+                      },
+                    ),
+                    SortListTile(
+                      labels: _labels,
+                      L: dialogLang,
+                      sortBy: _sortBy,
+                      onChanged: (v) {
+                        setState(() => _sortBy = v!);
                         setDS(() {});
-                      }
-                    },
-                  ),
+                        _applyFilter();
+                      },
+                    ),
+                    FuzzySwitchTile(
+                      labels: _labels,
+                      L: dialogLang,
+                      isFuzzy: _isFuzzy,
+                      onChanged: (v) {
+                        setState(() => _isFuzzy = v);
+                        setDS(() {});
+                        _applyFilter();
+                      },
+                    ),
+                    ThemeSwitchTile(
+                      labels: _labels,
+                      L: dialogLang,
+                      isDark: dialogIsDark,
+                      onChanged: (v) {
+                        widget.onThemeChanged(v);
+                        setDS(() => dialogIsDark = v);
+                      },
+                    ),
+                  ],
                 ),
-                ApiSettingsFields(
-                  urlController: _urlController,
-                  keyController: _keyController,
-                ),
-                FontSizeListTile(
-                  labels: _labels,
-                  L: dialogLang,
-                  currentFontSize: dialogFontSize,
-                  onChanged: (newSize) {
-                    widget.onFontSizeChanged(newSize);
-                    setDS(() => dialogFontSize = newSize);
-                  },
-                ),
-                DropdownButtonListTile(
-                  labels: _labels,
-                  L: dialogLang,
-                  current: dialogLang,
-                  onChanged: (v) {
-                    if (v != null) {
-                      widget.onLangChanged(v);
-                      setDS(() => dialogLang = v);
-                    }
-                  },
-                ),
-                SortListTile(
-                  labels: _labels,
-                  L: dialogLang,
-                  sortBy: _sortBy,
-                  onChanged: (v) {
-                    setState(() => _sortBy = v!);
-                    setDS(() {});
-                    _applyFilter();
-                  },
-                ),
-                FuzzySwitchTile(
-                  labels: _labels,
-                  L: dialogLang,
-                  isFuzzy: _isFuzzy,
-                  onChanged: (v) {
-                    setState(() => _isFuzzy = v);
-                    setDS(() {});
-                    _applyFilter();
-                  },
-                ),
-                ThemeSwitchTile(
-                  labels: _labels,
-                  L: dialogLang,
-                  isDark: dialogIsDark,
-                  onChanged: (v) {
-                    widget.onThemeChanged(v);
-                    setDS(() => dialogIsDark = v);
-                  },
-                ),
-              ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(_labels[dialogLang]!['cancel']!),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _saveSettings();
+                  Navigator.pop(context);
+                },
+                child: Text(_labels[dialogLang]!['save']!),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(_labels[dialogLang]!['cancel']!),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _saveSettings();
-                Navigator.pop(context);
-              },
-              child: Text(_labels[dialogLang]!['save']!),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
-class ApiSettingsFields extends StatelessWidget {
+class ApiSettingsFields extends StatefulWidget {
   final TextEditingController urlController;
   final TextEditingController keyController;
-  const ApiSettingsFields({
-    super.key,
-    required this.urlController,
-    required this.keyController,
-  });
+  const ApiSettingsFields({super.key, required this.urlController, required this.keyController});
+  @override
+  State<ApiSettingsFields> createState() => _ApiSettingsFieldsState();
+}
 
+class _ApiSettingsFieldsState extends State<ApiSettingsFields> {
+  bool _isObscured = true;
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         TextField(
-          controller: urlController,
-          decoration: const InputDecoration(labelText: 'Url'),
+          controller: widget.urlController,
+          decoration: const InputDecoration(
+            labelText: 'Url',
+            prefixIcon: Icon(Icons.link),
+          ),
         ),
         TextField(
-          controller: keyController,
-          decoration: const InputDecoration(labelText: 'API Key'),
+          controller: widget.keyController,
+          obscureText: _isObscured,
+          decoration: InputDecoration(
+            labelText: 'API Key',
+            prefixIcon: Icon(Icons.lock_outline),
+            suffixIcon: IconButton(
+              icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility),
+              onPressed: () {
+                setState(() {
+                  _isObscured = !_isObscured;
+                });
+              },
+            ),
+          ),
         ),
       ],
     );

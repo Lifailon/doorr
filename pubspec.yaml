@@ -28,7 +28,8 @@ dependencies:
   url_launcher: ^6.3.2
   dtorrent_parser: ^1.0.9
   dio: ^5.9.2
-  share_plus: ^13.1.0
+  open_filex: ^4.7.0
+  path_provider: ^2.1.5
 
 flutter_launcher_icons:
   android: "launcher_icon"
