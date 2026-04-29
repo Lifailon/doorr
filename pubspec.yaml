@@ -30,6 +30,7 @@ dependencies:
   dio: ^5.9.2
   open_filex: ^4.7.0
   path_provider: ^2.1.5
+  share_plus: ^13.1.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

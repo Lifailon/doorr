@@ -7,6 +7,7 @@ import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dio/dio.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 Map<String, dynamic> _labels = {};
 
@@ -128,8 +129,10 @@ class _SearchScreenState extends State<SearchScreen> {
   double _downloadProgress = 0.0;
   bool _isFuzzy = false;
   String _sortBy = 'age';
-
   String get L => widget.currentLang;
+  bool _showDownloadFileButton = false;
+  bool _showOpenFileButton = false;
+  bool _showShareFileButton = false;
 
   @override
   void initState() {
@@ -301,6 +304,10 @@ class _SearchScreenState extends State<SearchScreen> {
       widget.onLangChanged(lang);
       _sortBy = prefs.getString('sortBy') ?? 'age';
       _isFuzzy = prefs.getBool('isFuzzy') ?? false;
+      _showDownloadFileButton =
+          prefs.getBool('showDownloadFileButton') ?? false;
+      _showOpenFileButton = prefs.getBool('showOpenFileButton') ?? true;
+      _showShareFileButton = prefs.getBool('showShareFileButton') ?? false;
       bool isDark = prefs.getBool('isDark') ?? false;
       widget.onThemeChanged(isDark);
     });
@@ -315,6 +322,9 @@ class _SearchScreenState extends State<SearchScreen> {
     await prefs.setString('lang', widget.currentLang);
     await prefs.setString('sortBy', _sortBy);
     await prefs.setBool('isFuzzy', _isFuzzy);
+    await prefs.setBool('showDownloadFileButton', _showDownloadFileButton);
+    await prefs.setBool('showOpenFileButton', _showOpenFileButton);
+    await prefs.setBool('showShareFileButton', _showShareFileButton);
     await prefs.setBool('isDark', widget.isDark);
     ScaffoldMessenger.of(
       context,
@@ -440,6 +450,33 @@ class _SearchScreenState extends State<SearchScreen> {
         },
       );
       await OpenFilex.open(fullPath);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _shareFile(String url, String title) async {
+    setState(() {
+      _isLoading = true;
+      _downloadProgress = 0.0;
+    });
+    try {
+      String safeName = title.replaceAll(RegExp(r'[^\w\s]+'), '').trim();
+      if (safeName.length > 30) safeName = safeName.substring(0, 30);
+      final dir = await getExternalStorageDirectory();
+      final String fullPath = "${dir!.path}/$safeName.torrent";
+      await Dio().download(
+        url,
+        fullPath,
+        onReceiveProgress: (rec, tot) {
+          if (tot != -1) setState(() => _downloadProgress = rec / tot);
+        },
+      );
+      await Share.shareXFiles([XFile(fullPath)]);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -667,42 +704,69 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ],
                                 ),
                                 const SizedBox(width: 4),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  icon: const Icon(
-                                    Icons.download_for_offline,
-                                    color: Colors.green,
-                                    size: 40,
+                                if (_showDownloadFileButton)
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.download_for_offline,
+                                      color: Colors.green,
+                                      size: 40,
+                                    ),
+                                    onPressed: () => _openUrl(
+                                      item['downloadUrl'] ?? item['magnetUrl'],
+                                    ),
                                   ),
-                                  onPressed: () => _openUrl(
-                                    item['downloadUrl'] ?? item['magnetUrl'],
-                                  ),
-                                ),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  icon: const Icon(
-                                    Icons.launch,
-                                    color: Colors.teal,
-                                    size: 40,
-                                  ),
-                                  onPressed: () {
-                                    final url =
-                                        item['downloadUrl'] ??
-                                        item['magnetUrl'];
-                                    if (url != null) {
-                                      if (!url.startsWith('http')) {
-                                        _openUrl(url);
-                                      } else {
-                                        _openFile(
-                                          url,
-                                          item['title'] ?? 'file',
-                                        );
+                                if (_showOpenFileButton)
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.launch,
+                                      color: Colors.teal,
+                                      size: 40,
+                                    ),
+                                    onPressed: () {
+                                      final url =
+                                          item['downloadUrl'] ??
+                                          item['magnetUrl'];
+                                      if (url != null) {
+                                        if (!url.startsWith('http')) {
+                                          _openUrl(url);
+                                        } else {
+                                          _openFile(
+                                            url,
+                                            item['title'] ?? 'file',
+                                          );
+                                        }
                                       }
-                                    }
-                                  },
-                                ),
+                                    },
+                                  ),
+                                if (_showShareFileButton)
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.share,
+                                      color: Colors.grey,
+                                      size: 40,
+                                    ),
+                                    onPressed: () {
+                                      final url =
+                                          item['downloadUrl'] ??
+                                          item['magnetUrl'];
+                                      if (url != null) {
+                                        if (!url.startsWith('http')) {
+                                          _openUrl(url);
+                                        } else {
+                                          _shareFile(
+                                            url,
+                                            item['title'] ?? 'file',
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
@@ -826,6 +890,39 @@ class _SearchScreenState extends State<SearchScreen> {
                         _applyFilter();
                       },
                     ),
+                    SwitchListTile(
+                      title: Text(
+                        _labels[dialogLang]?['showDownloadButton'],
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      value: _showDownloadFileButton,
+                      onChanged: (v) {
+                        setState(() => _showDownloadFileButton = v);
+                        setDS(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text(
+                        _labels[dialogLang]?['showOpenButton'],
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      value: _showOpenFileButton,
+                      onChanged: (v) {
+                        setState(() => _showOpenFileButton = v);
+                        setDS(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: Text(
+                        _labels[dialogLang]?['showShareButton'],
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      value: _showShareFileButton,
+                      onChanged: (v) {
+                        setState(() => _showShareFileButton = v);
+                        setDS(() {});
+                      },
+                    ),
                     ThemeSwitchTile(
                       labels: _labels,
                       L: dialogLang,
@@ -862,7 +959,11 @@ class _SearchScreenState extends State<SearchScreen> {
 class ApiSettingsFields extends StatefulWidget {
   final TextEditingController urlController;
   final TextEditingController keyController;
-  const ApiSettingsFields({super.key, required this.urlController, required this.keyController});
+  const ApiSettingsFields({
+    super.key,
+    required this.urlController,
+    required this.keyController,
+  });
   @override
   State<ApiSettingsFields> createState() => _ApiSettingsFieldsState();
 }
