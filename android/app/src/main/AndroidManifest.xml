@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application
         android:usesCleartextTraffic="true"
-        android:label="doorr"
+        android:label="Doorr"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
