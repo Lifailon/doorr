@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:dtorrent_parser/dtorrent_parser.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -272,6 +273,16 @@ class _SearchScreenState extends State<SearchScreen> {
       if (response.statusCode == 200) {
         final torrent = await Torrent.parseFromBytes(response.bodyBytes);
         if (!mounted) return;
+        final String infoHash = torrent.infoHash;
+        final String name = Uri.encodeComponent(item['title'] ?? 'torrent');
+        String trackers = '';
+        if (torrent.announces.isNotEmpty) {
+          for (var tr in torrent.announces) {
+            trackers += '&tr=${Uri.encodeComponent(tr.toString())}';
+          }
+        }
+        final String generatedMagnet =
+            'magnet:?xt=urn:btih:$infoHash&dn=$name$trackers';
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -280,6 +291,8 @@ class _SearchScreenState extends State<SearchScreen> {
               files: torrent.files,
               lang: widget.currentLang,
               formatSize: _formatSize,
+              magnetLink: generatedMagnet,
+              onOpenUrl: _openUrl,
             ),
           ),
         );
@@ -506,24 +519,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   children: [
                     TextSpan(
-                      text: 'D',
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                    TextSpan(
-                      text: 'o',
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                    TextSpan(
-                      text: 'o',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    TextSpan(
-                      text: 'r',
-                      style: TextStyle(color: Colors.orange),
-                    ),
-                    TextSpan(
-                      text: 'r',
-                      style: TextStyle(color: Colors.orange),
+                      text: 'oorr',
+                      style: TextStyle(color: Color(0xFF3AA5D6)),
                     ),
                   ],
                 ),
@@ -537,7 +534,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: IconButton(
               iconSize: 30,
               color: Colors.grey,
-              icon: const Icon(Icons.settings),
+              icon: const Icon(Icons.more_horiz, color: Color(0xFF3AA5D6)),
               onPressed: _showSettingsDialog,
             ),
           ),
@@ -703,7 +700,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 2),
                                 if (_showDownloadFileButton)
                                   IconButton(
                                     visualDensity: VisualDensity.compact,
@@ -810,7 +807,7 @@ class _SearchScreenState extends State<SearchScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        double customWidth = MediaQuery.of(context).size.width * 0.6;
+        double customWidth = MediaQuery.of(context).size.width * 0.7;
         return StatefulBuilder(
           builder: (context, setDS) => AlertDialog(
             insetPadding: const EdgeInsets.symmetric(horizontal: 0),
@@ -978,7 +975,7 @@ class _ApiSettingsFieldsState extends State<ApiSettingsFields> {
           controller: widget.urlController,
           decoration: const InputDecoration(
             labelText: 'Url',
-            prefixIcon: Icon(Icons.link),
+            prefixIcon: Icon(Icons.link, color: Colors.blue),
           ),
         ),
         TextField(
@@ -986,7 +983,7 @@ class _ApiSettingsFieldsState extends State<ApiSettingsFields> {
           obscureText: _isObscured,
           decoration: InputDecoration(
             labelText: 'API Key',
-            prefixIcon: Icon(Icons.lock_outline),
+            prefixIcon: Icon(Icons.key, color: Colors.orange),
             suffixIcon: IconButton(
               icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility),
               onPressed: () {
@@ -1160,6 +1157,8 @@ class FileStructureScreen extends StatelessWidget {
   final List<dynamic> files;
   final String lang;
   final Function(dynamic) formatSize;
+  final String magnetLink;
+  final Function(String) onOpenUrl;
 
   const FileStructureScreen({
     super.key,
@@ -1167,12 +1166,36 @@ class FileStructureScreen extends StatelessWidget {
     required this.files,
     required this.lang,
     required this.formatSize,
+    required this.magnetLink,
+    required this.onOpenUrl,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title, style: const TextStyle(fontSize: 14))),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          centerTitle: false,
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 16),
+            maxLines: 2,
+            softWrap: true,
+            overflow: TextOverflow.ellipsis,
+          ),
+          actions: [
+            IconButton(
+              icon: const FaIcon(
+                FontAwesomeIcons.magnet,
+                color: Colors.redAccent,
+              ),
+              onPressed: () => onOpenUrl(magnetLink),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
       body: Column(
         children: [
           Container(

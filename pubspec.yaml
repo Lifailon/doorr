@@ -31,10 +31,11 @@ dependencies:
   open_filex: ^4.7.0
   path_provider: ^2.1.5
   share_plus: ^13.1.0
+  font_awesome_flutter: ^11.0.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: true
-  image_path: "assets/logo.png"
+  ios: false
+  image_path: "assets/icon.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/logo.png"
+  adaptive_icon_foreground: "assets/icon.png"
