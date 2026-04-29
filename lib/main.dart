@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dtorrent_parser/dtorrent_parser.dart';
+import 'package:dio/dio.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 Map<String, dynamic> _labels = {};
 
@@ -122,6 +125,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<dynamic> _allResults = [];
   List<dynamic> _filteredResults = [];
   bool _isLoading = false;
+  double _downloadProgress = 0.0;
   bool _isFuzzy = false;
   String _sortBy = 'age';
 
@@ -418,6 +422,32 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  Future<void> _handleDownload(String url, String title) async {
+    setState(() {
+      _isLoading = true;
+      _downloadProgress = 0.0;
+    });
+    try {
+      String safeName = title.replaceAll(RegExp(r'[^\w\s]+'), '').trim();
+      if (safeName.length > 30) safeName = safeName.substring(0, 30);
+      final String fullPath = "/storage/emulated/0/Download/$safeName.torrent";
+      await Dio().download(
+        url,
+        fullPath,
+        onReceiveProgress: (rec, tot) {
+          if (tot != -1) setState(() => _downloadProgress = rec / tot);
+        },
+      );
+      await Share.shareXFiles([XFile(fullPath)], text: 'Open torrent');
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -518,7 +548,11 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          if (_isLoading) const LinearProgressIndicator(),
+          if (_isLoading)
+            LinearProgressIndicator(
+              value: _downloadProgress > 0 ? _downloadProgress : null,
+              backgroundColor: Colors.blue.withOpacity(0.2),
+            ),
           Expanded(
             child: ListView.builder(
               itemCount: _filteredResults.length,
@@ -530,7 +564,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     item['categories'].isNotEmpty) {
                   cat = item['categories'][0]['name'] ?? '—';
                 }
-
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -644,6 +677,30 @@ class _SearchScreenState extends State<SearchScreen> {
                                   onPressed: () => _openUrl(
                                     item['downloadUrl'] ?? item['magnetUrl'],
                                   ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.launch,
+                                    color: Colors.teal,
+                                    size: 40,
+                                  ),
+                                  onPressed: () {
+                                    final url =
+                                        item['downloadUrl'] ??
+                                        item['magnetUrl'];
+                                    if (url != null) {
+                                      if (kIsWeb || !url.startsWith('http')) {
+                                        _openUrl(url);
+                                      } else {
+                                        _handleDownload(
+                                          url,
+                                          item['title'] ?? 'file',
+                                        );
+                                      }
+                                    }
+                                  },
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
