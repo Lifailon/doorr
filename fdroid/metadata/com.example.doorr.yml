@@ -1,0 +1,35 @@
+Categories:
+  - Connectivity
+  - Multimedia
+License: MIT
+SourceCode: https://github.com/Lifailon/doorr
+IssueTracker: https://github.com/Lifailon/doorr/issues
+
+AutoName: Doorr
+Description: Android search frontend for Prowlarr and Jackett
+
+RepoType: git
+Repo: https://github.com/Lifailon/doorr
+
+Builds:
+  - versionName: 1.0.0
+    versionCode: 1
+    commit: '1.0.0'
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@stable
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter packages pub get
+    scandelete:
+      - .pub-cache
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+UpdateCheckIgnore: .*
+CurrentVersion: 1.0.0
+CurrentVersionCode: 1

@@ -13,4 +13,6 @@
     </a>
 </h1>
 
-<img src="/assets/settings.png" width="30%" /> <img src="/assets/search.png" width="30%" /> <img src="/assets/files.png" width="30%" />
+<h1 align="center">
+    <img src="/assets/settings.png" width="30%" /> <img src="/assets/search.png" width="30%" /> <img src="/assets/files.png" width="30%" />
+</h1>
