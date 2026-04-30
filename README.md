@@ -13,6 +13,4 @@
     </a>
 </h1>
 
-<img src="/assets/settings.png" width="32%" />
-<img src="/assets/search.png" width="32%" />
-<img src="/assets/files.png" width="32%" />
+<img src="/assets/settings.png" width="30%" /> <img src="/assets/search.png" width="30%" /> <img src="/assets/files.png" width="30%" />
