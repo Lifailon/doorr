@@ -1,0 +1,1 @@
+Поисковый интерфейс Android для Prowlarr и Jackett.

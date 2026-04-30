@@ -1,0 +1,8 @@
+An open-source interface for searching torrents on Android.
+
+Features:
+- Search and download torrent files from Jackett or Prowlarr.
+- Content filtering.
+- Sorting by date and size.
+- Preview torrent file contents before downloading.
+- Dark theme.
