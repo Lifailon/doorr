@@ -1,4 +1,4 @@
-package com.example.doorr
+package io.github.lifailon.doorr
 
 import io.flutter.embedding.android.FlutterActivity
 

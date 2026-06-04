@@ -1,1 +1,1 @@
-Android search frontend for Prowlarr and Jackett.
+An interface for searching and downloading torrents from Prowlarr and Jackett on Android.

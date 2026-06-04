@@ -1,7 +1,12 @@
 name: doorr
-description: "Android search frontend for Prowlarr and Jackett"
+description: "An interface for searching and downloading torrents from Prowlarr and Jackett on Android"
 publish_to: 'none'
 version: 1.0.0+1
+
+homepage: https://github.com/Lifailon/doorr
+repository: https://github.com/Lifailon/doorr
+issue_tracker: https://github.com/Lifailon/doorr/issues
+maintainer: "Lifailon"
 
 environment:
   sdk: ^3.11.5
